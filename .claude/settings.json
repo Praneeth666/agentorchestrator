@@ -1,8 +1,30 @@
 {
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "agent",
+            "agent": "format-checker",
+            "prompt": "Check formatting of the file that was just written: $CLAUDE_TOOL_INPUT_FILE_PATH"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '$CLAUDE_TOOL_INPUT' | grep -q 'git push' && bash .claude/scripts/notify-push.sh || true"
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "ask": [
       "WebFetch"
     ]
   }
 }
-

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"practice4/agentorchestrator"
 )
 
@@ -16,18 +16,6 @@ func main() {
 	}
 
 	svc := agentorchestrator.Newservice(cfg)
-
-	for i := 1; i <= 100; i++ {
-		err := svc.Request(fmt.Sprintf("request %d", i))
-		if err != nil {
-			fmt.Printf("request %d error: %v\n", i, err)
-		}
-	}
-
-	for i := 1; i <= 1000; i++ {
-		err := svc.Request(fmt.Sprintf("request %d", i))
-		if err != nil {
-			fmt.Printf("request %d error: %v\n", i, err)
-		}
-	}
+	ctrl := agentorchestrator.NewController(svc)
+	log.Fatal(ctrl.Start(":8080"))
 }

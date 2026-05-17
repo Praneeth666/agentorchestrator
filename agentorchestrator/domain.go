@@ -2,7 +2,6 @@ package agentorchestrator
 
 import (
 	"errors"
-	"fmt"
 	"math/rand"
 	"time"
 )
@@ -38,31 +37,38 @@ type halfOpenState struct {
 func (s halfOpenState) getName() string { return s.name }
 
 func (s openState) run(body any, l *serviceImp) error {
-	split := l.config.Closedtraffic
+	split := l.config.Opentraffic
 	total := split.Claude + split.Openapi + split.Reject
 	r := rand.Intn(total)
 	var e error
 
 	if r < split.Claude {
 		e = claude(body)
+	} else if r < split.Claude+split.Openapi {
+		e = openapi(body)
+	}
+
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	if r < split.Claude {
 		l.claudeerror.registerRequest()
 		if e != nil {
 			l.claudeerror.registerError()
 		}
 	} else if r < split.Claude+split.Openapi {
-		e = openapi(body)
 		l.openapierror.registerRequest()
 		if e != nil {
 			l.openapierror.registerError()
 		}
 	}
+
 	errorRate := l.getErrorRate()
 	if errorRate < float32(l.config.Halfopenerrorrate)/100 {
 		l.triggerEvent(SUCCESS)
 	}
 
 	return e
-
 }
 
 func (s closedState) run(body any, l *serviceImp) error {
@@ -73,7 +79,6 @@ func (s closedState) run(body any, l *serviceImp) error {
 	if e != nil {
 		l.claudeerror.registerError()
 	}
-	fmt.Println("runn", l.claudeerror.getErrorRate())
 
 	if l.claudeerror.getErrorRate() > float32(l.config.Closederrorrate)/100 {
 		l.triggerEvent(FAILURE)
@@ -85,28 +90,30 @@ func (s closedState) run(body any, l *serviceImp) error {
 func (s halfOpenState) run(body any, l *serviceImp) error {
 	split := l.config.Halfopentraffic
 	total := split.Claude + split.Openapi + split.Reject
-
 	r := rand.Intn(total)
-
 	var e error
+
 	if r < split.Claude {
 		e = claude(body)
-		l.lock.Lock()
-		defer l.lock.Unlock()
+	} else if r < split.Claude+split.Openapi {
+		e = openapi(body)
+	} else {
+		e = errors.New("rejected before sending")
+	}
+
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	if r < split.Claude {
 		l.claudeerror.registerRequest()
 		if e != nil {
 			l.claudeerror.registerError()
 		}
 	} else if r < split.Claude+split.Openapi {
-		e = openapi(body)
-		l.lock.Lock()
-		defer l.lock.Unlock()
 		l.openapierror.registerRequest()
 		if e != nil {
 			l.openapierror.registerError()
 		}
-	} else {
-		e = errors.New("rejected before sending")
 	}
 
 	errorRate := l.getErrorRate()
@@ -119,13 +126,6 @@ func (s halfOpenState) run(body any, l *serviceImp) error {
 	return e
 }
 
-func addTransition(to state, event Event, l *serviceImp) {
-	from := l.state
-	if l.transitions[from] == nil {
-		l.transitions[from] = make(map[Event]state)
-	}
-	l.transitions[from][event] = to
-}
 
 type Trafficsplit struct {
 	Claude  int

@@ -77,9 +77,9 @@ func (l *serviceImp) addTransition(from state, to state, event Event) error {
 //
 // Returns nil; errors are tracked internally and surface through state transitions.
 func (l *serviceImp) Request(body interface{}) error {
-	l.state.run(body, l)
+	err := l.state.run(body, l)
 	fmt.Println("state", l.state.getName(), l.getErrorRate())
-	return nil
+	return err
 }
 
 // weightedErrorRate computes a traffic-weighted error rate across two backends.
