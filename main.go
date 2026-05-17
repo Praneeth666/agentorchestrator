@@ -23,4 +23,11 @@ func main() {
 			fmt.Printf("request %d error: %v\n", i, err)
 		}
 	}
+
+	for i := 1; i <= 1000; i++ {
+		err := svc.Request(fmt.Sprintf("request %d", i))
+		if err != nil {
+			fmt.Printf("request %d error: %v\n", i, err)
+		}
+	}
 }
